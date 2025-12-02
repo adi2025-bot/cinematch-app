@@ -337,7 +337,7 @@ def get_top_movies():
     q['score']=q.apply(lambda x: (x['vote_count']/(x['vote_count']+m)*x['vote_average'])+(m/(m+x['vote_count'])*C), axis=1)
     return q.sort_values('score',ascending=False).head(20)
 
-# ✅ FIXED: Force Streamlit to render HTML correctly
+# ✅ FIXED FUNCTION: USES UNSAFE_ALLOW_HTML=TRUE
 def display_movies_grid(movies_to_show):
     if not movies_to_show:
         st.info("No movies found.")
@@ -359,7 +359,7 @@ def display_movies_grid(movies_to_show):
         """
     html_code += "</div>"
     
-    # CRITICAL FIX: The argument 'unsafe_allow_html=True' is MANDATORY
+    # ⚠️ THIS LINE FIXES THE "RAW CODE ON SCREEN" ERROR
     st.markdown(html_code, unsafe_allow_html=True)
 
 # Navigation
