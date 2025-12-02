@@ -268,7 +268,7 @@ def fetch_full_details(movie_id, title="Movie"):
 def load_data():
     try:
         movies_dict = pickle.load(open('movie_list.pkl','rb'))
-        similarity = pickle.load(gzip.open('similarity.pkl.gz','rb'))
+        similarity = pickle.load(gzip.open('similarity.pkl','rb'))
         
         movies = pd.DataFrame(movies_dict)
         movies['year_int'] = pd.to_datetime(movies['release_date'], errors='coerce').dt.year.fillna(0).astype(int)
