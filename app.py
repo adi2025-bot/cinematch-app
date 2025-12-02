@@ -337,7 +337,7 @@ def get_top_movies():
     q['score']=q.apply(lambda x: (x['vote_count']/(x['vote_count']+m)*x['vote_average'])+(m/(m+x['vote_count'])*C), axis=1)
     return q.sort_values('score',ascending=False).head(20)
 
-# ✅ FIXED: Force Streamlit to render HTML
+# ✅ FIXED: Force Streamlit to render HTML correctly
 def display_movies_grid(movies_to_show):
     if not movies_to_show:
         st.info("No movies found.")
@@ -359,7 +359,7 @@ def display_movies_grid(movies_to_show):
         """
     html_code += "</div>"
     
-    # CRITICAL FIX: unsafe_allow_html=True ensures it renders as visual elements, not text code.
+    # CRITICAL FIX: The argument 'unsafe_allow_html=True' is MANDATORY
     st.markdown(html_code, unsafe_allow_html=True)
 
 # Navigation
