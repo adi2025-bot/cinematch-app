@@ -75,14 +75,17 @@ st.markdown("""
         margin-bottom: 30px;
     }
     
-    /* Hide scrollbar for Chrome, Safari and Opera */
+    /* Scrollbar styling */
     .scrolling-wrapper::-webkit-scrollbar {
-        display: none;
+        height: 8px;
     }
-    /* Hide scrollbar for IE, Edge and Firefox */
-    .scrolling-wrapper {
-        -ms-overflow-style: none;  /* IE and Edge */
-        scrollbar-width: none;  /* Firefox */
+    .scrolling-wrapper::-webkit-scrollbar-track {
+        background: #161b22;
+        border-radius: 4px;
+    }
+    .scrolling-wrapper::-webkit-scrollbar-thumb {
+        background-color: #e50914;
+        border-radius: 4px;
     }
 
     /* CARD STYLE FOR HORIZONTAL SCROLL */
@@ -334,13 +337,12 @@ def get_top_movies():
     q['score']=q.apply(lambda x: (x['vote_count']/(x['vote_count']+m)*x['vote_average'])+(m/(m+x['vote_count'])*C), axis=1)
     return q.sort_values('score',ascending=False).head(20)
 
-# ✅ FIXED: RENDERS AS HTML TO PREVENT RAW CODE DISPLAY
+# ✅ FIXED: Force Streamlit to render HTML
 def display_movies_grid(movies_to_show):
     if not movies_to_show:
         st.info("No movies found.")
         return
         
-    # Build HTML for horizontal scroll
     html_code = '<div class="scrolling-wrapper">'
     for data in movies_to_show:
         link_url = f"?id={data['id']}&user={st.session_state.username}"
@@ -356,7 +358,8 @@ def display_movies_grid(movies_to_show):
         </a>
         """
     html_code += "</div>"
-    # THE CRITICAL FIX IS HERE: unsafe_allow_html=True
+    
+    # CRITICAL FIX: unsafe_allow_html=True ensures it renders as visual elements, not text code.
     st.markdown(html_code, unsafe_allow_html=True)
 
 # Navigation
@@ -674,22 +677,4 @@ else:
                 st.markdown(f"### Actor: {query}")
                 display_movies_grid(movies_to_show)
 
-        elif st.session_state.page == 'watchlist':
-            title_text = "❤️ My Watchlist"; wl = get_watchlist(st.session_state.username)
-            if not wl.empty:
-                sub_df = movies[movies['title'].isin(wl['movie'])]
-                with ThreadPoolExecutor(max_workers=3) as executor:
-                    movies_to_show = list(executor.map(process_grid_item, [row for _, row in sub_df.iterrows()]))
-                st.markdown(f"### {title_text}")
-                display_movies_grid(movies_to_show)
-            else: st.info("Watchlist is empty.")
-        
-        elif st.session_state.page == 'liked':
-            title_text = "👍 Liked Movies"; lk = get_liked_movies(st.session_state.username)
-            if not lk.empty:
-                sub_df = movies[movies['title'].isin(lk['movie'])]
-                with ThreadPoolExecutor(max_workers=3) as executor:
-                    movies_to_show = list(executor.map(process_grid_item, [row for _, row in sub_df.iterrows()]))
-                st.markdown(f"### {title_text}")
-                display_movies_grid(movies_to_show)
-            else: st.info("No liked movies yet.")
+        elif st.
