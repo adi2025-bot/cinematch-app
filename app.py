@@ -267,8 +267,11 @@ def fetch_full_details(movie_id, title="Movie"):
 @st.cache_resource
 def load_data():
     try:
+        # Load the movie list
         movies_dict = pickle.load(open('movie_list.pkl','rb'))
-        similarity = pickle.load(gzip.open('similarity.pkl','rb'))
+        
+        # Load the compressed similarity file (MATCHING THE FILE NAME)
+        similarity = pickle.load(gzip.open('similarity.pkl.gz', 'rb'))
         
         movies = pd.DataFrame(movies_dict)
         movies['year_int'] = pd.to_datetime(movies['release_date'], errors='coerce').dt.year.fillna(0).astype(int)
@@ -279,7 +282,8 @@ def load_data():
             
         return movies, similarity
     except Exception as e: 
-        st.error(f"Error loading data files: {e}"); return None, None
+        st.error(f"Error loading data files: {e}")
+        return None, None
 
 movies, similarity = load_data()
 
