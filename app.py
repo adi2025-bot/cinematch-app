@@ -8,7 +8,7 @@ import ast
 import time
 import urllib.parse
 import plotly.express as px
-import gzip  # <--- NEW IMPORT ADDED HERE
+import gzip
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from requests.adapters import HTTPAdapter
@@ -42,7 +42,7 @@ if 'search_type' not in st.session_state: st.session_state.search_type = 'movie'
 if 'search_query' not in st.session_state: st.session_state.search_query = None
 
 # ==========================================
-# 2. VISUAL STYLE
+# 2. VISUAL STYLE (NETFLIX/JIOCINEMA STYLE)
 # ==========================================
 st.markdown("""
 <style>
@@ -64,19 +64,46 @@ st.markdown("""
     .logo { font-size: 32px; font-weight: 800; color: #e50914; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 10px rgba(229,9,20,0.6); }
     .user-badge { font-weight: 600; color: #ddd; }
     
-    /* MOVIE CARD */
-    .movie-card {
-        text-decoration: none; color: white; display: block;
-        background: #161b22; border-radius: 15px; overflow: hidden;
-        border: 1px solid rgba(255,255,255,0.05); transition: 0.3s;
-        height: 100%; cursor: pointer;
-        margin-bottom: 25px;
+    /* --- HORIZONTAL SCROLL CONTAINER (The Magic Part) --- */
+    .scrolling-wrapper {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 15px;
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+        scrollbar-width: thin; /* Firefox */
+        scrollbar-color: #e50914 #161b22;
     }
-    .movie-card:hover { transform: scale(1.04); border-color: #e50914; z-index: 10; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    
+    /* Scrollbar styling for Chrome/Safari */
+    .scrolling-wrapper::-webkit-scrollbar {
+        height: 8px;
+    }
+    .scrolling-wrapper::-webkit-scrollbar-track {
+        background: #161b22;
+        border-radius: 4px;
+    }
+    .scrolling-wrapper::-webkit-scrollbar-thumb {
+        background-color: #e50914;
+        border-radius: 4px;
+    }
+
+    /* CARD STYLE FOR HORIZONTAL SCROLL */
+    .movie-card {
+        flex: 0 0 auto; /* Don't shrink */
+        width: 160px;   /* Fixed width like mobile apps */
+        text-decoration: none; color: white; display: block;
+        background: #161b22; border-radius: 12px; overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.05); transition: 0.3s;
+        position: relative;
+    }
+    .movie-card:hover { transform: scale(1.05); border-color: #e50914; z-index: 10; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     .movie-card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block;}
-    .card-content { padding: 12px; }
-    .card-title { font-size: 1rem; font-weight: 700; margin: 0 0 5px 0; line-height: 1.2; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .card-meta { font-size: 0.85rem; color: #aaa; }
+    .card-content { padding: 10px; }
+    .card-title { font-size: 0.9rem; font-weight: 700; margin: 0 0 4px 0; line-height: 1.2; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-meta { font-size: 0.75rem; color: #aaa; }
     
     /* HERO SECTION */
     .hero-container {
@@ -99,17 +126,11 @@ st.markdown("""
     /* CAST CIRCLES */
     .cast-container { text-align: center; margin-bottom: 15px; }
     .cast-img { border-radius: 15px; width: 100%; object-fit: cover; aspect-ratio: 1/1; margin-bottom: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-    .cast-name { font-size: 0.9rem; font-weight: 600; line-height: 1.2; }
     
-    /* SIDEBAR INFO */
+    /* INFO & REVIEWS */
     .info-box { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
     .info-label { color: #aaa; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
     .info-val { font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; color: #fff; }
-    
-    /* STREAMING */
-    .stream-badge { display: inline-block; padding: 6px 12px; background: #fff; color: #000; border-radius: 6px; margin: 4px; font-weight: 700; font-size: 0.8rem; }
-    
-    /* REVIEWS */
     .review-card { background: #1f2633; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid #e50914; }
     .sentiment-pos { color: #46d369; font-weight: bold; font-size: 0.8rem; float: right; }
     
@@ -117,7 +138,6 @@ st.markdown("""
     .stButton>button { 
         background: linear-gradient(135deg, #e50914, #ff5f6d); color: white; border-radius: 8px; border: none; font-weight: 700; padding: 10px 0; transition: 0.3s; width: 100%;
     }
-    .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(229, 9, 20, 0.4); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -247,10 +267,7 @@ def fetch_full_details(movie_id, title="Movie"):
 @st.cache_resource
 def load_data():
     try:
-        # 1. LOAD NORMAL MOVIE LIST
         movies_dict = pickle.load(open('movie_list.pkl','rb'))
-        
-        # 2. LOAD COMPRESSED SIMILARITY FILE (UPDATED HERE)
         similarity = pickle.load(gzip.open('similarity.pkl.gz','rb'))
         
         movies = pd.DataFrame(movies_dict)
@@ -322,27 +339,29 @@ def get_top_movies():
     q['score']=q.apply(lambda x: (x['vote_count']/(x['vote_count']+m)*x['vote_average'])+(m/(m+x['vote_count'])*C), axis=1)
     return q.sort_values('score',ascending=False).head(20)
 
+# ✅ NEW HORIZONTAL SCROLL FUNCTION
 def display_movies_grid(movies_to_show):
     if not movies_to_show:
         st.info("No movies found.")
         return
-    for i in range(0, len(movies_to_show), 5):
-        cols = st.columns(5, gap="medium")
-        batch = movies_to_show[i:i+5]
-        for idx, data in enumerate(batch):
-            with cols[idx]:
-                link_url = f"?id={data['id']}&user={st.session_state.username}"
-                st.markdown(f"""
-                <a href="{link_url}" target="_self" style="text-decoration:none;">
-                    <div class="movie-card">
-                        <img src="{data['poster']}">
-                        <div class="card-content">
-                            <div class="card-title">{data['title']}</div>
-                            <div class="card-meta">{data['rating']}</div>
-                        </div>
-                    </div>
-                </a>
-                """, unsafe_allow_html=True)
+        
+    # Build HTML for horizontal scroll
+    html_code = '<div class="scrolling-wrapper">'
+    for data in movies_to_show:
+        link_url = f"?id={data['id']}&user={st.session_state.username}"
+        html_code += f"""
+        <a href="{link_url}" target="_self" style="text-decoration:none;">
+            <div class="movie-card">
+                <img src="{data['poster']}">
+                <div class="card-content">
+                    <div class="card-title">{data['title']}</div>
+                    <div class="card-meta">{data['rating']}</div>
+                </div>
+            </div>
+        </a>
+        """
+    html_code += "</div>"
+    st.markdown(html_code, unsafe_allow_html=True)
 
 # Navigation
 def set_detail(movie_id): 
@@ -611,20 +630,21 @@ else:
                     
                     exact_grid_item = process_grid_item(exact_movie)
                     
-                    col_ex_1, col_ex_2, col_ex_3, col_ex_4, col_ex_5 = st.columns(5)
-                    with col_ex_1:
-                        link_url = f"?id={exact_grid_item['id']}&user={st.session_state.username}"
-                        st.markdown(f"""
-                        <a href="{link_url}" target="_self" style="text-decoration:none;">
-                            <div class="movie-card">
-                                <img src="{exact_grid_item['poster']}">
-                                <div class="card-content">
-                                    <div class="card-title">{exact_grid_item['title']}</div>
-                                    <div class="card-meta">{exact_grid_item['rating']}</div>
-                                </div>
+                    # Exact match still gets its own small section
+                    html_code = f"""
+                    <div style="margin-bottom:30px;">
+                    <a href="?id={exact_grid_item['id']}&user={st.session_state.username}" target="_self" style="text-decoration:none;">
+                        <div class="movie-card" style="width:180px;">
+                            <img src="{exact_grid_item['poster']}">
+                            <div class="card-content">
+                                <div class="card-title">{exact_grid_item['title']}</div>
+                                <div class="card-meta">{exact_grid_item['rating']}</div>
                             </div>
-                        </a>
-                        """, unsafe_allow_html=True)
+                        </div>
+                    </a>
+                    </div>
+                    """
+                    st.markdown(html_code, unsafe_allow_html=True)
                         
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.markdown(f"### Movies related to {exact_movie['title']}")
