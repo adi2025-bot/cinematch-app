@@ -42,7 +42,7 @@ if 'search_type' not in st.session_state: st.session_state.search_type = 'movie'
 if 'search_query' not in st.session_state: st.session_state.search_query = None
 
 # ==========================================
-# 2. VISUAL STYLE (NETFLIX/JIOCINEMA STYLE)
+# 2. VISUAL STYLE (NETFLIX MOBILE SCROLL)
 # ==========================================
 st.markdown("""
 <style>
@@ -64,36 +64,31 @@ st.markdown("""
     .logo { font-size: 32px; font-weight: 800; color: #e50914; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 10px rgba(229,9,20,0.6); }
     .user-badge { font-weight: 600; color: #ddd; }
     
-    /* --- HORIZONTAL SCROLL CONTAINER (The Magic Part) --- */
+    /* --- HORIZONTAL SCROLL CONTAINER --- */
     .scrolling-wrapper {
         display: flex;
         flex-wrap: nowrap;
         overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+        -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
         gap: 15px;
         padding-bottom: 20px;
         margin-bottom: 30px;
-        scrollbar-width: thin; /* Firefox */
-        scrollbar-color: #e50914 #161b22;
     }
     
-    /* Scrollbar styling for Chrome/Safari */
+    /* Hide scrollbar for Chrome, Safari and Opera */
     .scrolling-wrapper::-webkit-scrollbar {
-        height: 8px;
+        display: none;
     }
-    .scrolling-wrapper::-webkit-scrollbar-track {
-        background: #161b22;
-        border-radius: 4px;
-    }
-    .scrolling-wrapper::-webkit-scrollbar-thumb {
-        background-color: #e50914;
-        border-radius: 4px;
+    /* Hide scrollbar for IE, Edge and Firefox */
+    .scrolling-wrapper {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
     }
 
     /* CARD STYLE FOR HORIZONTAL SCROLL */
     .movie-card {
         flex: 0 0 auto; /* Don't shrink */
-        width: 160px;   /* Fixed width like mobile apps */
+        width: 150px;   /* Fixed width like mobile apps */
         text-decoration: none; color: white; display: block;
         background: #161b22; border-radius: 12px; overflow: hidden;
         border: 1px solid rgba(255,255,255,0.05); transition: 0.3s;
@@ -102,7 +97,7 @@ st.markdown("""
     .movie-card:hover { transform: scale(1.05); border-color: #e50914; z-index: 10; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     .movie-card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block;}
     .card-content { padding: 10px; }
-    .card-title { font-size: 0.9rem; font-weight: 700; margin: 0 0 4px 0; line-height: 1.2; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-title { font-size: 0.85rem; font-weight: 700; margin: 0 0 4px 0; line-height: 1.2; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .card-meta { font-size: 0.75rem; color: #aaa; }
     
     /* HERO SECTION */
@@ -267,11 +262,8 @@ def fetch_full_details(movie_id, title="Movie"):
 @st.cache_resource
 def load_data():
     try:
-        # Load the movie list
         movies_dict = pickle.load(open('movie_list.pkl','rb'))
-        
-        # Load the compressed similarity file (MATCHING THE FILE NAME)
-        similarity = pickle.load(gzip.open('similarity.pkl.gz', 'rb'))
+        similarity = pickle.load(gzip.open('similarity.pkl.gz','rb'))
         
         movies = pd.DataFrame(movies_dict)
         movies['year_int'] = pd.to_datetime(movies['release_date'], errors='coerce').dt.year.fillna(0).astype(int)
@@ -282,8 +274,7 @@ def load_data():
             
         return movies, similarity
     except Exception as e: 
-        st.error(f"Error loading data files: {e}")
-        return None, None
+        st.error(f"Error loading data files: {e}"); return None, None
 
 movies, similarity = load_data()
 
@@ -343,7 +334,7 @@ def get_top_movies():
     q['score']=q.apply(lambda x: (x['vote_count']/(x['vote_count']+m)*x['vote_average'])+(m/(m+x['vote_count'])*C), axis=1)
     return q.sort_values('score',ascending=False).head(20)
 
-# ✅ NEW HORIZONTAL SCROLL FUNCTION
+# ✅ FIXED: RENDERS AS HTML TO PREVENT RAW CODE DISPLAY
 def display_movies_grid(movies_to_show):
     if not movies_to_show:
         st.info("No movies found.")
@@ -365,6 +356,7 @@ def display_movies_grid(movies_to_show):
         </a>
         """
     html_code += "</div>"
+    # THE CRITICAL FIX IS HERE: unsafe_allow_html=True
     st.markdown(html_code, unsafe_allow_html=True)
 
 # Navigation
@@ -634,11 +626,11 @@ else:
                     
                     exact_grid_item = process_grid_item(exact_movie)
                     
-                    # Exact match still gets its own small section
+                    # Single item display in horizontal style for consistency
                     html_code = f"""
-                    <div style="margin-bottom:30px;">
+                    <div class="scrolling-wrapper">
                     <a href="?id={exact_grid_item['id']}&user={st.session_state.username}" target="_self" style="text-decoration:none;">
-                        <div class="movie-card" style="width:180px;">
+                        <div class="movie-card">
                             <img src="{exact_grid_item['poster']}">
                             <div class="card-content">
                                 <div class="card-title">{exact_grid_item['title']}</div>
