@@ -677,4 +677,22 @@ else:
                 st.markdown(f"### Actor: {query}")
                 display_movies_grid(movies_to_show)
 
-        elif st.
+        elif st.session_state.page == 'watchlist':
+            title_text = "❤️ My Watchlist"; wl = get_watchlist(st.session_state.username)
+            if not wl.empty:
+                sub_df = movies[movies['title'].isin(wl['movie'])]
+                with ThreadPoolExecutor(max_workers=3) as executor:
+                    movies_to_show = list(executor.map(process_grid_item, [row for _, row in sub_df.iterrows()]))
+                st.markdown(f"### {title_text}")
+                display_movies_grid(movies_to_show)
+            else: st.info("Watchlist is empty.")
+        
+        elif st.session_state.page == 'liked':
+            title_text = "👍 Liked Movies"; lk = get_liked_movies(st.session_state.username)
+            if not lk.empty:
+                sub_df = movies[movies['title'].isin(lk['movie'])]
+                with ThreadPoolExecutor(max_workers=3) as executor:
+                    movies_to_show = list(executor.map(process_grid_item, [row for _, row in sub_df.iterrows()]))
+                st.markdown(f"### {title_text}")
+                display_movies_grid(movies_to_show)
+            else: st.info("No liked movies yet.")
